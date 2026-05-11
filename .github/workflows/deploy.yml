@@ -1,0 +1,66 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout playground
+        uses: actions/checkout@v4
+        with:
+          path: shader-gen-playground
+
+      - name: Checkout core
+        uses: actions/checkout@v4
+        with:
+          repository: phpolygon/shader-gen-core
+          path: shader-gen-core
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: shader-gen-playground/package-lock.json
+
+      - name: Install
+        working-directory: shader-gen-playground
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: shader-gen-playground
+        run: npm run typecheck
+
+      - name: Build
+        working-directory: shader-gen-playground
+        env:
+          PUBLIC_BASE: /shader-gen-playground/
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: shader-gen-playground/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
