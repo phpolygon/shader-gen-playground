@@ -1,5 +1,9 @@
 import * as THREE from "three";
 
+export interface SetShaderOptions {
+  transparent?: boolean;
+}
+
 export interface PreviewHandle {
   start: () => void;
   stop: () => void;
@@ -7,6 +11,7 @@ export interface PreviewHandle {
     vertex: string,
     fragment: string,
     uniforms: Record<string, { value: unknown }>,
+    options?: SetShaderOptions,
   ) => void;
   updateUniforms: (next: Record<string, { value: unknown }>) => void;
   dispose: () => void;
@@ -70,6 +75,10 @@ export function createPreview(canvas: HTMLCanvasElement): PreviewHandle {
     const dt = (t - lastT) / 1000;
     lastT = t;
     mesh.rotation.y += dt * 0.4;
+    const timeUniform = material.uniforms.uTime;
+    if (timeUniform) {
+      timeUniform.value = (timeUniform.value as number) + dt;
+    }
     renderer.render(scene, camera);
     raf = requestAnimationFrame(tick);
   };
@@ -89,16 +98,19 @@ export function createPreview(canvas: HTMLCanvasElement): PreviewHandle {
       running = false;
       cancelAnimationFrame(raf);
     },
-    setShader(vertex, fragment, uniforms) {
+    setShader(vertex, fragment, uniforms, options) {
       material.vertexShader = vertex;
       material.fragmentShader = fragment;
       material.uniforms = uniforms as THREE.ShaderMaterial["uniforms"];
+      const transparent = options?.transparent ?? false;
+      material.transparent = transparent;
+      material.depthWrite = !transparent;
       material.needsUpdate = true;
     },
     updateUniforms(next) {
       for (const key of Object.keys(next)) {
         const slot = material.uniforms[key];
-        if (slot) slot.value = next[key]!.value;
+        if (slot && key !== "uTime") slot.value = next[key]!.value;
       }
     },
     dispose() {

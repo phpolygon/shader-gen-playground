@@ -28,7 +28,9 @@ export function mountEffect({
 }: EffectRunnerOptions): EffectRunner {
   let values: ParameterValues = { ...defaultValuesOf(spec.parameters), ...initialValues };
 
-  preview.setShader(spec.preview.vertex, spec.preview.fragment, spec.toUniforms(values));
+  preview.setShader(spec.preview.vertex, spec.preview.fragment, spec.toUniforms(values), {
+    transparent: spec.transparent ?? false,
+  });
   panel.setParameters(spec.parameters, values);
 
   const onChange = (event: Event) => {
