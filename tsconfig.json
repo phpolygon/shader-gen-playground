@@ -24,5 +24,6 @@
       "@phpolygon/shader-gen-core/*": ["../shader-gen-core/src/*"]
     }
   },
-  "include": ["src", "../shader-gen-core/src", "vite.config.ts"]
+  "include": ["src", "../shader-gen-core/src", "vite.config.ts"],
+  "exclude": ["**/*.test.ts", "**/__snapshots__/**"]
 }
