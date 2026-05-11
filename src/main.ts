@@ -1,25 +1,42 @@
+import { fresnelRim, getEffect, type ParameterValues } from "@phpolygon/shader-gen-core";
 import { createPreview } from "./preview/scene.ts";
+import { mountEffect } from "./preview/effect-runner.ts";
 import { ParameterPanel } from "./ui/parameter-panel.ts";
-import { readHash, writeHash } from "./share/hash-sync.ts";
+import { mountExportButton } from "./ui/export-button.ts";
+import { readHash } from "./share/hash-sync.ts";
 
 ParameterPanel.register();
 
 const canvas = document.getElementById("preview-canvas");
-if (!(canvas instanceof HTMLCanvasElement)) {
-  throw new Error("Preview canvas missing");
-}
+const panel = document.querySelector("parameter-panel");
+const exportHost = document.getElementById("export-host");
+
+if (!(canvas instanceof HTMLCanvasElement)) throw new Error("preview-canvas missing");
+if (!(panel instanceof ParameterPanel)) throw new Error("parameter-panel missing");
+if (!exportHost) throw new Error("export-host missing");
 
 const preview = createPreview(canvas);
 preview.start();
 
-const initial = readHash();
-if (initial) {
-  console.info("[share] loaded state", initial);
-}
+const shared = readHash();
+const spec = (shared && getEffect(shared.effectId)) ?? fresnelRim;
+const initialValues: ParameterValues | undefined =
+  shared && shared.effectId === spec.id ? shared.parameters : undefined;
 
-window.addEventListener("hashchange", () => {
-  const next = readHash();
-  if (next) console.info("[share] hash changed", next);
+const runner = mountEffect({
+  spec,
+  preview,
+  panel,
+  ...(initialValues ? { initialValues } : {}),
 });
 
-void writeHash;
+const titleEl = document.getElementById("effect-title");
+const descEl = document.getElementById("effect-desc");
+if (titleEl) titleEl.textContent = spec.name;
+if (descEl) descEl.textContent = spec.description;
+
+mountExportButton(exportHost, () => ({
+  spec: runner.getSpec(),
+  values: runner.getValues(),
+  shaderName: "MyEffect",
+}));

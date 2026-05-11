@@ -10,6 +10,7 @@ export class ParameterPanel extends HTMLElement {
 
   private params: readonly ParameterSpec[] = [];
   private values: ParameterValues = {};
+  private valueNodes: Record<string, HTMLElement> = {};
 
   connectedCallback(): void {
     this.render();
@@ -32,6 +33,7 @@ export class ParameterPanel extends HTMLElement {
   }
 
   private render(): void {
+    this.valueNodes = {};
     if (this.params.length === 0) {
       this.innerHTML = `<p class="empty">No effect selected.</p>`;
       return;
@@ -42,6 +44,7 @@ export class ParameterPanel extends HTMLElement {
       row.className = "row";
       const label = document.createElement("label");
       label.textContent = p.label;
+      if (p.description) label.title = p.description;
       row.appendChild(label);
       row.appendChild(this.buildInput(p));
       this.appendChild(row);
@@ -50,24 +53,47 @@ export class ParameterPanel extends HTMLElement {
 
   private buildInput(p: ParameterSpec): HTMLElement {
     if (p.type === "float") {
+      const wrap = document.createElement("div");
+      wrap.className = "input float";
       const input = document.createElement("input");
       input.type = "range";
       input.min = String(p.min);
       input.max = String(p.max);
       input.step = String(p.step ?? (p.max - p.min) / 100);
       input.value = String(this.values[p.name] ?? p.default);
+      const valueLabel = document.createElement("span");
+      valueLabel.className = "value";
+      valueLabel.textContent = formatFloat(Number(input.value));
+      this.valueNodes[p.name] = valueLabel;
       input.addEventListener("input", () => {
-        this.values[p.name] = Number(input.value);
+        const n = Number(input.value);
+        this.values[p.name] = n;
+        valueLabel.textContent = formatFloat(n);
         this.emitChange();
       });
-      return input;
+      wrap.appendChild(input);
+      wrap.appendChild(valueLabel);
+      return wrap;
     }
     if (p.type === "bool") {
       const input = document.createElement("input");
+      input.className = "input bool";
       input.type = "checkbox";
       input.checked = Boolean(this.values[p.name] ?? p.default);
       input.addEventListener("change", () => {
         this.values[p.name] = input.checked;
+        this.emitChange();
+      });
+      return input;
+    }
+    if (p.type === "color") {
+      const input = document.createElement("input");
+      input.className = "input color";
+      input.type = "color";
+      const initial = (this.values[p.name] as [number, number, number] | undefined) ?? p.default;
+      input.value = rgbToHex(initial);
+      input.addEventListener("input", () => {
+        this.values[p.name] = hexToRgb(input.value);
         this.emitChange();
       });
       return input;
@@ -85,4 +111,22 @@ function defaultValues(params: readonly ParameterSpec[]): ParameterValues {
     out[p.name] = p.default;
   }
   return out;
+}
+
+function formatFloat(n: number): string {
+  return Number(n.toFixed(3)).toString();
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (!m) return [0, 0, 0];
+  return [parseInt(m[1]!, 16) / 255, parseInt(m[2]!, 16) / 255, parseInt(m[3]!, 16) / 255];
+}
+
+function rgbToHex(rgb: readonly [number, number, number]): string {
+  const c = (n: number) =>
+    Math.round(Math.max(0, Math.min(1, n)) * 255)
+      .toString(16)
+      .padStart(2, "0");
+  return `#${c(rgb[0])}${c(rgb[1])}${c(rgb[2])}`;
 }

@@ -3,7 +3,12 @@ import * as THREE from "three";
 export interface PreviewHandle {
   start: () => void;
   stop: () => void;
-  setShader: (vertex: string, fragment: string, uniforms: Record<string, THREE.IUniform>) => void;
+  setShader: (
+    vertex: string,
+    fragment: string,
+    uniforms: Record<string, { value: unknown }>,
+  ) => void;
+  updateUniforms: (next: Record<string, { value: unknown }>) => void;
   dispose: () => void;
 }
 
@@ -87,8 +92,14 @@ export function createPreview(canvas: HTMLCanvasElement): PreviewHandle {
     setShader(vertex, fragment, uniforms) {
       material.vertexShader = vertex;
       material.fragmentShader = fragment;
-      material.uniforms = uniforms;
+      material.uniforms = uniforms as THREE.ShaderMaterial["uniforms"];
       material.needsUpdate = true;
+    },
+    updateUniforms(next) {
+      for (const key of Object.keys(next)) {
+        const slot = material.uniforms[key];
+        if (slot) slot.value = next[key]!.value;
+      }
     },
     dispose() {
       this.stop();
