@@ -1,8 +1,9 @@
 name: Deploy
 
+# Auto-deploy is disabled while core is private. To enable on launch:
+#   1. Flip both repos to public.
+#   2. Restore `push: { branches: [main] }` below.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
